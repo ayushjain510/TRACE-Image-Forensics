@@ -1,0 +1,1019 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f2ed">
+
+  <title>TRACE — Image Forensics</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+  <!-- Preview fallback protection -->
+  <style>
+    .preview-image img[hidden],
+    .preview-image #previewFallback[hidden] {
+      display: none !important;
+    }
+
+    .preview-image #previewFallback {
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 2px;
+      line-height: 1.8;
+      color: #77766f;
+      text-align: center;
+      background: #e5e2da;
+    }
+
+    .preview-image.preview-unavailable img {
+      display: none !important;
+    }
+
+    .preview-image.preview-unavailable #previewFallback {
+      display: flex;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="topline"></div>
+
+  <!-- NAVIGATION -->
+  <header class="site-header">
+
+    <a class="brand" href="/">
+      <span class="brand-mark">T<span>.</span></span>
+
+      <span class="brand-name">
+        TRACE
+        <small>IMAGE FORENSICS</small>
+      </span>
+    </a>
+
+    <div class="header-meta">
+      <span class="live-dot"></span>
+      LOCAL ANALYSIS TOOL
+      <span class="meta-divider">/</span>
+      V1.0
+    </div>
+
+  </header>
+
+
+  <main>
+
+    <!-- INTRODUCTION -->
+    <section class="intro">
+
+      <div class="eyebrow">
+        <span>01</span>
+        DIGITAL IMAGE EXAMINATION
+      </div>
+
+      <h1>
+        Look closer.<br>
+        <em>Find what changed.</em>
+      </h1>
+
+      <p class="intro-copy">
+        Examine image integrity using Error Level Analysis,
+        CNN classification and copy-move localisation.
+      </p>
+
+    </section>
+
+
+    <!-- IMAGE UPLOAD -->
+    <section class="workspace">
+
+      <div class="section-heading">
+
+        <div>
+          <span class="step-index">A / INPUT</span>
+          <h2>Submit an image</h2>
+        </div>
+
+        <span class="file-spec">
+          JPG · PNG · TIF
+          <i>/</i>
+          IMAGE FILE
+        </span>
+
+      </div>
+
+
+      <form
+        class="upload"
+        action="{{ url_for('analyse_route') }}"
+        method="post"
+        enctype="multipart/form-data"
+        id="uploadForm"
+      >
+
+        <label for="image" class="drop" id="dropzone">
+
+          <span class="upload-icon">↑</span>
+
+          <span class="drop-copy">
+            <strong id="fname">
+              Choose an image to examine
+            </strong>
+
+            <small id="filehint">
+              or drop it here · select an image from your device
+            </small>
+          </span>
+
+          <span class="browse">
+            BROWSE FILES <b>↗</b>
+          </span>
+
+          <input
+            type="file"
+            id="image"
+            name="image"
+            accept=".jpg,.jpeg,.png,.tif,.tiff,image/jpeg,image/png,image/tiff"
+            required
+          >
+
+        </label>
+
+
+        <!-- UPLOAD ERROR -->
+        <div
+          class="upload-error"
+          id="uploadError"
+          role="alert"
+          hidden
+        >
+
+          <span class="error-icon">!</span>
+
+          <div>
+            <strong>Unable to upload image</strong>
+            <p id="uploadErrorMessage"></p>
+          </div>
+
+        </div>
+
+
+        <!-- IMAGE PREVIEW -->
+        <div class="upload-preview" id="previewPanel" hidden>
+
+          <div class="preview-image" id="previewImageContainer">
+
+            <img
+              id="previewImage"
+              src=""
+              alt="Selected image preview"
+            >
+
+            <span id="previewFallback" hidden>
+              TIFF<br>FILE
+            </span>
+
+          </div>
+
+
+          <div class="preview-details">
+
+            <span class="step-index">SELECTED IMAGE</span>
+
+            <strong id="previewName">image.jpg</strong>
+
+            <small id="previewSize">0 MB</small>
+
+          </div>
+
+
+          <button
+            type="button"
+            id="removeImage"
+            class="remove-image"
+          >
+            Remove <span>×</span>
+          </button>
+
+        </div>
+
+
+        <button type="submit" id="analyseButton">
+          Run analysis <span>→</span>
+        </button>
+
+      </form>
+
+
+      {% if error %}
+        <div class="error">
+          <span>!</span>
+          {{ error }}
+        </div>
+      {% endif %}
+
+    </section>
+
+
+    {% if result %}
+
+    <!-- ANALYSIS RESULTS -->
+    <section class="results">
+
+      <div class="section-heading result-heading">
+
+        <div>
+          <span class="step-index">B / FINDINGS</span>
+          <h2>Examination report</h2>
+        </div>
+
+        <span class="report-file">
+          FILE <b>{{ filename }}</b>
+        </span>
+
+      </div>
+
+
+      <!-- VERDICT -->
+      <div class="verdict {{ 'bad' if result.verdict == 'Tampered' else 'good' }}">
+
+        <div class="verdict-main">
+
+          <span class="micro-label">
+            AUTOMATED ASSESSMENT
+            <i>·</i>
+            CNN CLASSIFIER
+          </span>
+
+          <div class="verdict-line">
+
+            <span class="verdict-symbol">
+              {{ '!' if result.verdict == 'Tampered' else '✓' }}
+            </span>
+
+            <strong>{{ result.verdict }}</strong>
+
+          </div>
+
+          <p>{{ result.reason }}</p>
+
+        </div>
+
+
+        <!-- METRICS -->
+        <div class="metrics">
+
+          <div class="metric">
+            <span>CONFIDENCE</span>
+
+            <strong>
+              {{ '%.1f' % (result.confidence * 100) }}<small>%</small>
+            </strong>
+          </div>
+
+
+          <div class="metric">
+            <span>P(TAMPERED)</span>
+
+            <strong>
+              {{ '%.3f' % result.prob_tampered }}
+            </strong>
+          </div>
+
+
+          <div class="metric">
+            <span>COPY-MOVE</span>
+
+            <strong class="metric-word">
+              {{ 'Detected' if result.copy_move_suspicious else 'Not found' }}
+            </strong>
+
+            {% if result.copy_move_suspicious %}
+              <small>{{ result.copy_move_pairs }} matching pairs</small>
+            {% endif %}
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- VISUAL EVIDENCE -->
+      <div class="section-heading visuals-heading">
+
+        <div>
+          <span class="step-index">C / VISUAL EVIDENCE</span>
+          <h2>Image breakdown</h2>
+        </div>
+
+        <span class="file-spec">04 OUTPUTS</span>
+
+      </div>
+
+
+      <div class="evidence-grid">
+
+        <figure class="evidence-card">
+
+          <div class="image-wrap">
+            <img src="{{ original }}" alt="Original uploaded image">
+          </div>
+
+          <figcaption>
+            <span class="evidence-number">01</span>
+
+            <span>
+              <strong>Original image</strong>
+              <small>Source material</small>
+            </span>
+          </figcaption>
+
+        </figure>
+
+
+        <figure class="evidence-card">
+
+          <div class="image-wrap">
+            <img src="{{ ela }}" alt="Error Level Analysis">
+          </div>
+
+          <figcaption>
+            <span class="evidence-number">02</span>
+
+            <span>
+              <strong>Error Level Analysis</strong>
+              <small>Compression differences</small>
+            </span>
+          </figcaption>
+
+        </figure>
+
+
+        <figure class="evidence-card">
+
+          <div class="image-wrap">
+            <img src="{{ heatmap }}" alt="Suspicion heatmap">
+          </div>
+
+          <figcaption>
+            <span class="evidence-number">03</span>
+
+            <span>
+              <strong>Suspicion map</strong>
+              <small>Areas flagged for review</small>
+            </span>
+          </figcaption>
+
+        </figure>
+
+
+        <figure class="evidence-card">
+
+          <div class="image-wrap">
+            <img src="{{ copymove }}" alt="Copy-move matches">
+          </div>
+
+          <figcaption>
+            <span class="evidence-number">04</span>
+
+            <span>
+              <strong>Copy-move matches</strong>
+              <small>Potential duplicated regions</small>
+            </span>
+          </figcaption>
+
+        </figure>
+
+      </div>
+
+
+      <!-- EXPLANATION -->
+      <div class="interpretation">
+
+        <span class="interpretation-mark">i</span>
+
+        <div>
+
+          <strong>Reading the evidence</strong>
+
+          <p>
+            Bright regions in the ELA image indicate areas
+            that recompress differently from the rest of the
+            photo. Lines in the copy-move view connect regions
+            that may have been duplicated. These signals
+            support the model's assessment; they are not
+            proof of manipulation on their own.
+          </p>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    {% else %}
+
+    <!-- EMPTY STATE -->
+    <section class="empty-state">
+
+      <div class="empty-art">
+
+        <span class="scan-corner tl"></span>
+        <span class="scan-corner tr"></span>
+        <span class="scan-corner bl"></span>
+        <span class="scan-corner br"></span>
+
+        <div class="scan-cross">＋</div>
+
+        <div class="scan-label">
+          AWAITING INPUT
+        </div>
+
+      </div>
+
+
+      <div class="empty-copy">
+
+        <span class="step-index">
+          READY WHEN YOU ARE
+        </span>
+
+        <h2>
+          Nothing under the lens. <em>Yet.</em>
+        </h2>
+
+        <p>
+          Upload an image to generate a forensic report
+          with visual evidence and a model assessment.
+        </p>
+
+      </div>
+
+    </section>
+
+    {% endif %}
+
+  </main>
+
+
+  <!-- FOOTER -->
+  <footer>
+
+    <span>
+      TRACE <b>·</b> IMAGE FORENSICS
+    </span>
+
+    <span>
+      AUTOMATED ANALYSIS
+      <i>/</i>
+      REVIEW FINDINGS WITH CARE
+    </span>
+
+  </footer>
+
+
+  <!-- EVIDENCE IMAGE VIEWER -->
+  <div class="lightbox" id="lightbox" aria-hidden="true">
+
+    <div
+      class="lightbox-content"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Evidence image viewer"
+    >
+
+      <button
+        class="lightbox-close"
+        id="lightboxClose"
+        aria-label="Close viewer"
+      >
+        &times;
+      </button>
+
+      <button
+        class="lightbox-nav prev"
+        id="lightboxPrev"
+        aria-label="Previous image"
+      >
+        &#8592;
+      </button>
+
+      <div class="lightbox-image-area">
+
+        <img
+          id="lightboxImage"
+          src=""
+          alt="Enlarged forensic evidence"
+        >
+
+        <div class="lightbox-caption">
+          <span id="lightboxNumber">01 / 04</span>
+          <strong id="lightboxTitle">Original image</strong>
+        </div>
+
+      </div>
+
+      <button
+        class="lightbox-nav next"
+        id="lightboxNext"
+        aria-label="Next image"
+      >
+        &#8594;
+      </button>
+
+    </div>
+
+  </div>
+
+
+  <!-- ALL PAGE JAVASCRIPT -->
+  <script>
+
+    // ==========================================
+    // IMAGE UPLOADER
+    // ==========================================
+
+    const input = document.getElementById('image');
+    const dropzone = document.getElementById('dropzone');
+
+    const filename = document.getElementById('fname');
+    const filehint = document.getElementById('filehint');
+
+    const previewPanel = document.getElementById('previewPanel');
+    const previewImage = document.getElementById('previewImage');
+    const previewName = document.getElementById('previewName');
+    const previewSize = document.getElementById('previewSize');
+    const previewFallback = document.getElementById('previewFallback');
+    const previewImageContainer = document.getElementById('previewImageContainer');
+
+    const removeButton = document.getElementById('removeImage');
+
+    const uploadForm = document.getElementById('uploadForm');
+    const analyseButton = document.getElementById('analyseButton');
+
+    const uploadError = document.getElementById('uploadError');
+    const uploadErrorMessage = document.getElementById('uploadErrorMessage');
+
+    const MAX_FILE_SIZE = 16 * 1024 * 1024;
+
+    const allowedExtensions = [
+      'jpg',
+      'jpeg',
+      'png',
+      'tif',
+      'tiff'
+    ];
+
+    let previewURL = null;
+
+
+    // Release old preview URL.
+    function clearPreviewURL() {
+
+      if (previewURL) {
+        URL.revokeObjectURL(previewURL);
+        previewURL = null;
+      }
+
+    }
+
+
+    // Reset uploader.
+    function resetUploader() {
+
+      input.value = '';
+
+      clearPreviewURL();
+
+      previewPanel.hidden = true;
+
+      previewImage.hidden = false;
+      previewImage.removeAttribute('src');
+
+      previewFallback.hidden = true;
+
+      previewImageContainer.classList.remove('preview-unavailable');
+
+      filename.textContent = 'Choose an image to examine';
+
+      filehint.textContent =
+        'or drop it here · select an image from your device';
+
+      dropzone.classList.remove(
+        'has-file',
+        'invalid',
+        'dragging'
+      );
+
+      uploadError.hidden = true;
+
+      analyseButton.disabled = false;
+      analyseButton.innerHTML = 'Run analysis <span>→</span>';
+
+    }
+
+
+    // Show upload error.
+    function rejectFile(message) {
+
+      resetUploader();
+
+      uploadErrorMessage.textContent = message;
+
+      uploadError.hidden = false;
+
+    }
+
+
+    // Validate and preview selected file.
+    function updateFile(file) {
+
+      if (!file) return;
+
+      const extension = file.name
+        .split('.')
+        .pop()
+        .toLowerCase();
+
+
+      // Unsupported format.
+      if (!allowedExtensions.includes(extension)) {
+
+        rejectFile(
+          'This file format is not supported. Please upload a JPG, JPEG, PNG, or TIFF image.'
+        );
+
+        return;
+      }
+
+
+      // Empty file.
+      if (file.size === 0) {
+
+        rejectFile(
+          'This image file is empty. Please choose another image.'
+        );
+
+        return;
+      }
+
+
+      // File size limit.
+      if (file.size > MAX_FILE_SIZE) {
+
+        rejectFile(
+          'This image exceeds the 16 MB upload limit. Please choose a smaller image.'
+        );
+
+        return;
+      }
+
+
+      // Clear previous preview and errors.
+      clearPreviewURL();
+
+      uploadError.hidden = true;
+
+      previewImage.hidden = false;
+      previewFallback.hidden = true;
+
+      previewImageContainer.classList.remove('preview-unavailable');
+
+
+      // Update file details.
+      const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
+
+      filename.textContent = file.name;
+
+      filehint.textContent =
+        `${sizeInMB} MB · ready for examination`;
+
+      previewName.textContent = file.name;
+      previewSize.textContent = `${sizeInMB} MB`;
+
+      dropzone.classList.add('has-file');
+      dropzone.classList.remove('invalid');
+
+      previewPanel.hidden = false;
+
+
+      // Create local preview.
+      previewURL = URL.createObjectURL(file);
+
+
+      previewImage.onload = () => {
+
+        previewImage.hidden = false;
+
+        previewFallback.hidden = true;
+
+        previewImageContainer.classList.remove('preview-unavailable');
+
+      };
+
+
+      // TIFF or unsupported browser preview.
+      previewImage.onerror = () => {
+
+        previewImage.hidden = true;
+
+        previewImageContainer.classList.add('preview-unavailable');
+
+        previewFallback.hidden = false;
+
+        previewSize.textContent =
+          `${sizeInMB} MB · Preview unavailable`;
+
+      };
+
+
+      previewImage.src = previewURL;
+
+    }
+
+
+    // File picker.
+    input.addEventListener('change', () => {
+
+      updateFile(input.files[0]);
+
+    });
+
+
+    // Drag-and-drop feedback.
+    ['dragenter', 'dragover'].forEach(type => {
+
+      dropzone.addEventListener(type, event => {
+
+        event.preventDefault();
+
+        dropzone.classList.add('dragging');
+
+      });
+
+    });
+
+
+    ['dragleave', 'drop'].forEach(type => {
+
+      dropzone.addEventListener(type, event => {
+
+        event.preventDefault();
+
+        dropzone.classList.remove('dragging');
+
+      });
+
+    });
+
+
+    // Handle dropped files.
+    dropzone.addEventListener('drop', event => {
+
+      const file = event.dataTransfer.files[0];
+
+      if (!file) return;
+
+      const transfer = new DataTransfer();
+
+      transfer.items.add(file);
+
+      input.files = transfer.files;
+
+      updateFile(file);
+
+    });
+
+
+    // Remove selected image.
+    removeButton.addEventListener('click', resetUploader);
+
+
+    // Validate before submission.
+    uploadForm.addEventListener('submit', event => {
+
+      const file = input.files[0];
+
+      if (!file) {
+
+        event.preventDefault();
+
+        rejectFile(
+          'Please choose an image before running the analysis.'
+        );
+
+        return;
+      }
+
+
+      const extension = file.name
+        .split('.')
+        .pop()
+        .toLowerCase();
+
+
+      if (
+        !allowedExtensions.includes(extension) ||
+        file.size === 0 ||
+        file.size > MAX_FILE_SIZE
+      ) {
+
+        event.preventDefault();
+
+        updateFile(file);
+
+        return;
+      }
+
+
+      // Loading feedback.
+      analyseButton.disabled = true;
+
+      analyseButton.innerHTML = 'Analysing image...';
+
+    });
+
+
+
+    // ==========================================
+    // EVIDENCE IMAGE VIEWER
+    // ==========================================
+
+    const lightbox = document.getElementById('lightbox');
+
+    const lightboxImage = document.getElementById('lightboxImage');
+
+    const lightboxTitle = document.getElementById('lightboxTitle');
+
+    const lightboxNumber = document.getElementById('lightboxNumber');
+
+    const lightboxClose = document.getElementById('lightboxClose');
+
+    const lightboxPrev = document.getElementById('lightboxPrev');
+
+    const lightboxNext = document.getElementById('lightboxNext');
+
+
+    const evidenceImages = Array.from(
+      document.querySelectorAll('.evidence-card .image-wrap img')
+    );
+
+    let currentEvidence = 0;
+
+
+    // Display evidence image.
+    function showEvidence(index) {
+
+      if (evidenceImages.length === 0) return;
+
+      currentEvidence =
+        (index + evidenceImages.length) % evidenceImages.length;
+
+      const selected = evidenceImages[currentEvidence];
+
+      lightboxImage.src = selected.src;
+
+      lightboxImage.alt = selected.alt;
+
+      const card = selected.closest('.evidence-card');
+
+      const title = card?.querySelector('figcaption strong');
+
+      lightboxTitle.textContent = title
+        ? title.textContent
+        : 'Evidence image';
+
+      lightboxNumber.textContent =
+        `${String(currentEvidence + 1).padStart(2, '0')} / ${String(evidenceImages.length).padStart(2, '0')}`;
+
+    }
+
+
+    // Open viewer.
+    function openLightbox(index) {
+
+      if (!lightbox || evidenceImages.length === 0) return;
+
+      showEvidence(index);
+
+      lightbox.classList.add('active');
+
+      lightbox.setAttribute('aria-hidden', 'false');
+
+      document.body.style.overflow = 'hidden';
+
+    }
+
+
+    // Close viewer.
+    function closeLightbox() {
+
+      if (!lightbox) return;
+
+      lightbox.classList.remove('active');
+
+      lightbox.setAttribute('aria-hidden', 'true');
+
+      document.body.style.overflow = '';
+
+    }
+
+
+    // Make evidence images clickable.
+    evidenceImages.forEach(img => {
+
+      img.style.cursor = 'zoom-in';
+
+      img.style.pointerEvents = 'auto';
+
+    });
+
+
+    // Preserve global viewer function.
+    window.openLightbox = openLightbox;
+
+
+    // Open images using event delegation.
+    document.addEventListener('click', event => {
+
+      const image = event.target.closest(
+        '.evidence-card .image-wrap img'
+      );
+
+      if (!image) return;
+
+      const index = evidenceImages.indexOf(image);
+
+      if (index !== -1) {
+        openLightbox(index);
+      }
+
+    });
+
+
+    // Close button.
+    lightboxClose.addEventListener('click', closeLightbox);
+
+
+    // Previous image.
+    lightboxPrev.addEventListener('click', () => {
+
+      showEvidence(currentEvidence - 1);
+
+    });
+
+
+    // Next image.
+    lightboxNext.addEventListener('click', () => {
+
+      showEvidence(currentEvidence + 1);
+
+    });
+
+
+    // Close by clicking background.
+    lightbox.addEventListener('click', event => {
+
+      if (event.target === lightbox) {
+        closeLightbox();
+      }
+
+    });
+
+
+    // Keyboard controls.
+    document.addEventListener('keydown', event => {
+
+      if (!lightbox.classList.contains('active')) return;
+
+      if (event.key === 'Escape') {
+        closeLightbox();
+      }
+
+      if (event.key === 'ArrowLeft') {
+        showEvidence(currentEvidence - 1);
+      }
+
+      if (event.key === 'ArrowRight') {
+        showEvidence(currentEvidence + 1);
+      }
+
+    });
+
+  </script>
+
+</body>
+</html>
